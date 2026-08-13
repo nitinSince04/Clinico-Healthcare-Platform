@@ -1,0 +1,94 @@
+// Prisma Schema for Clinico Healthcare & Telehealth Platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("PATIENT") // "PATIENT" | "DOCTOR" | "ADMIN"
+  image     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  doctorProfile  DoctorProfile?
+  patientProfile PatientProfile?
+
+  // Direct relations for convenience
+  patientAppointments Appointment[]  @relation("PatientAppointments")
+  doctorAppointments  Appointment[]  @relation("DoctorAppointments")
+  patientPrescriptions Prescription[] @relation("PatientPrescriptions")
+  doctorPrescriptions  Prescription[] @relation("DoctorPrescriptions")
+}
+
+model DoctorProfile {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialty       String
+  bio             String
+  experienceYears Int
+  consultationFee Float
+  availableSlots  String   // JSON string storing slot configurations e.g. ["09:00 AM", "10:00 AM", ...]
+  status          String   @default("ACTIVE") // "ACTIVE" | "INACTIVE"
+  rating          Float    @default(4.9)
+  location        String   @default("Main Medical Tower, Suite 400")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model PatientProfile {
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  age            Int
+  gender         String
+  bloodGroup     String
+  medicalHistory String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Appointment {
+  id            String   @id @default(uuid())
+  patientId     String
+  patient       User     @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId      String
+  doctor        User     @relation("DoctorAppointments", fields: [doctorId], references: [id], onDelete: Cascade)
+  date          DateTime
+  timeSlot      String
+  status        String   @default("PENDING") // "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED"
+  type          String   @default("VIDEO") // "IN_PERSON" | "VIDEO"
+  paymentStatus   String   @default("UNPAID") // "UNPAID" | "PAID"
+  stripeSessionId String?
+  stripePaymentId String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+
+  prescription Prescription?
+}
+
+model Prescription {
+  id            String      @id @default(uuid())
+  appointmentId String      @unique
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  doctorId      String
+  doctor        User        @relation("DoctorPrescriptions", fields: [doctorId], references: [id], onDelete: Cascade)
+  patientId     String
+  patient       User        @relation("PatientPrescriptions", fields: [patientId], references: [id], onDelete: Cascade)
+  diagnosis     String
+  medicines     String      // JSON string of Array<{ name, dose, frequency, duration }>
+  pdfUrl        String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
