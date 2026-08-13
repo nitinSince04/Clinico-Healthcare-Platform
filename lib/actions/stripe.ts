@@ -62,7 +62,10 @@ export async function createStripeCheckoutSession(input: {
     });
 
     const feeInCents = Math.round((doctor.doctorProfile.consultationFee || 100) * 100);
-    const domainUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+    let domainUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+    if (!domainUrl.startsWith("http://") && !domainUrl.startsWith("https://")) {
+      domainUrl = `https://${domainUrl}`;
+    }
 
     // Attempt real Stripe Checkout Session creation
     try {
