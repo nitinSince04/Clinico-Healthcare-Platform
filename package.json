@@ -4,12 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/build.js",
+    "build": "prisma generate && next build",
+    "postinstall": "prisma generate",
     "start": "next start",
     "lint": "next lint",
-    "db:push": "node node_modules/prisma/build/index.js db push",
-    "db:seed": "node node_modules/prisma/build/index.js db seed",
-    "db:studio": "node node_modules/prisma/build/index.js db studio"
+    "db:push": "prisma db push",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio"
   },
   "prisma": {
     "seed": "node node_modules/ts-node/dist/bin.js --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
