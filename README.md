@@ -1,6 +1,6 @@
 # Clinico — Enterprise Healthcare & Telehealth Platform
 
-Clinico is an enterprise-grade, production-ready Healthcare and Telehealth platform built from scratch using Next.js 14 (App Router, Server Actions), TypeScript (Strict Mode), Tailwind CSS, Framer Motion, Prisma ORM, NextAuth.js v5 (Auth.js) with Role-Based Access Control (`PATIENT`, `DOCTOR`, `ADMIN`), and `@react-pdf/renderer` for instant digital prescription PDFs.
+Clinico is an enterprise-grade, production-ready Healthcare and Telehealth platform built from scratch using Next.js 14 (App Router, Server Actions), TypeScript (Strict Mode), Tailwind CSS, Framer Motion, Prisma ORM with PostgreSQL (Supabase), NextAuth.js v5 (Auth.js) with Role-Based Access Control (`PATIENT`, `DOCTOR`, `ADMIN`), Stripe payment integration, and `@react-pdf/renderer` for instant digital prescription PDFs.
 
 ---
 
@@ -25,7 +25,8 @@ Clinico is an enterprise-grade, production-ready Healthcare and Telehealth platf
                                                     │
                                                     ▼
                                     ┌──────────────────────────────┐
-                                    │    Prisma ORM & SQLite DB    │
+                                    │   Prisma ORM & PostgreSQL    │
+                                    │     (Supabase + PgBouncer)   │
                                     │  User | Doctor | Patient |   │
                                     │  Appointment | Prescription  │
                                     └──────────────────────────────┘
@@ -90,8 +91,9 @@ clinico/
 │   ├── auth.ts                # NextAuth configuration & credentials helper
 │   └── validations/           # Zod boundary validation schemas
 ├── middleware.ts              # Route protection & role redirection middleware
+├── netlify.toml               # Netlify build configuration & plugin setup
 ├── prisma/
-│   ├── schema.prisma          # Data Models (User, DoctorProfile, PatientProfile, Appointment, Prescription)
+│   ├── schema.prisma          # Data Models (PostgreSQL provider & directUrl)
 │   └── seed.ts                # Database seed script for test accounts & sample data
 ├── types/                     # NextAuth TypeScript type definitions
 ├── .env.example
@@ -106,6 +108,7 @@ clinico/
 ### 1. Prerequisites
 - Node.js 18.x or 20.x installed
 - npm or yarn
+- PostgreSQL database (e.g. Supabase, Neon, or local PostgreSQL instance)
 
 ### 2. Installation
 Clone the repository and install dependencies:
@@ -118,19 +121,29 @@ Copy `.env.example` to `.env`:
 ```bash
 cp .env.example .env
 ```
-Default `.env` contents:
+Default `.env` configuration:
 ```env
-DATABASE_URL="file:./dev.db"
+# Database Connections (Supabase PostgreSQL / PgBouncer)
+DATABASE_URL="postgresql://postgres.ref:password@aws-0-region.pooler.supabase.com:6543/postgres?pgbouncer=true"
+DIRECT_URL="postgresql://postgres:password@db.ref.supabase.co:5432/postgres"
+
+# NextAuth Authentication
 NEXTAUTH_SECRET="clinico_super_secret_jwt_key_2026_production_grade"
 NEXTAUTH_URL="http://localhost:3000"
+
+# Stripe Payments Integration
 STRIPE_SECRET_KEY="sk_test_mock_key"
 STRIPE_WEBHOOK_SECRET="whsec_mock_key"
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_test_mock_key"
 ```
 
-### 4. Database Initialization & Seeding
-Push the Prisma schema to create the SQLite database (`dev.db`) and seed demo accounts:
+> **Note on Special Characters in Database Passwords:**
+> If your database password contains `@` or other URI special characters, URL-encode them (e.g., `@` becomes `%40`).
+
+### 4. Database Schema Sync & Seeding
+Push the Prisma schema to your PostgreSQL database and seed demo accounts:
 ```bash
-npm run db:push
+npx prisma db push
 npm run db:seed
 ```
 
@@ -154,19 +167,35 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## 🚀 Production Deployment (Vercel & PostgreSQL)
+## 🚀 Netlify Deployment Guide
 
-To deploy Clinico to production on **Vercel** with **PostgreSQL** (Supabase, Neon, or AWS RDS):
+Clinico is configured for seamless deployment on **Netlify** using Next.js 14 Serverless Functions and `@netlify/plugin-nextjs`.
 
-1. **Switch Database Provider in `prisma/schema.prisma`**:
-   Change `provider = "sqlite"` to `provider = "postgresql"`.
-2. **Push Schema & Build**:
-   Set `DATABASE_URL` in Vercel Environment Variables to your PostgreSQL connection string.
-3. **Run Prisma Migration**:
-   ```bash
-   npx prisma migrate deploy
-   ```
-4. **Deploy**:
-   ```bash
-   vercel --prod
-   ```
+### 1. `netlify.toml` Setup
+Your repository includes a pre-configured `netlify.toml`:
+```toml
+[build]
+  command = "prisma generate && npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+```
+
+### 2. Netlify Environment Variables
+In your **Netlify Dashboard** (**Site configuration > Environment variables**), set the following key-value pairs:
+
+| Variable | Example / Description |
+| :--- | :--- |
+| `DATABASE_URL` | `postgresql://postgres.ref:password@aws-0-region.pooler.supabase.com:6543/postgres?pgbouncer=true` |
+| `DIRECT_URL` | `postgresql://postgres:password@db.ref.supabase.co:5432/postgres` |
+| `NEXTAUTH_SECRET` | `your_production_nextauth_secret` |
+| `NEXTAUTH_URL` | `https://your-site-name.netlify.app` |
+| `NODE_VERSION` | `20` |
+
+### 3. Key Deployment Best Practices
+- **Supabase Connection Pooling**: Use the **Transaction Pooler** URL (port `6543` with `?pgbouncer=true`) for `DATABASE_URL` in Netlify to prevent connection exhaustion.
+- **Dynamic Pre-rendering**: The homepage includes `export const dynamic = "force-dynamic"` to ensure Next.js defers database queries to request runtime rather than build time.
