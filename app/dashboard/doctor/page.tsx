@@ -12,10 +12,15 @@ export default async function DoctorDashboardPage() {
     redirect("/login?callbackUrl=/dashboard/doctor");
   }
 
-  const doctorUser = await db.user.findUnique({
-    where: { id: session.user.id },
-    include: { doctorProfile: true },
-  });
+  let doctorUser = null;
+  try {
+    doctorUser = await db.user.findUnique({
+      where: { id: session.user.id },
+      include: { doctorProfile: true },
+    });
+  } catch (error) {
+    console.error("Failed to load doctor profile:", error);
+  }
 
   if (!doctorUser || !doctorUser.doctorProfile) {
     redirect("/login");
