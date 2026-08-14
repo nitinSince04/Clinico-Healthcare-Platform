@@ -20,13 +20,20 @@ import {
   CheckCircle2,
 } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
-  // Fetch top 3 doctors from DB
-  const topDoctors = await db.user.findMany({
-    where: { role: "DOCTOR", doctorProfile: { status: "ACTIVE" } },
-    include: { doctorProfile: true },
-    take: 3,
-  });
+  // Fetch top 3 doctors from DB with try-catch fallback
+  let topDoctors: any[] = [];
+  try {
+    topDoctors = await db.user.findMany({
+      where: { role: "DOCTOR", doctorProfile: { status: "ACTIVE" } },
+      include: { doctorProfile: true },
+      take: 3,
+    });
+  } catch (error) {
+    console.error("Failed to fetch top doctors:", error);
+  }
 
   const specialties = [
     { name: "Cardiology", icon: Heart, count: "18+ Specialists", desc: "Heart health & cardiovascular care" },
